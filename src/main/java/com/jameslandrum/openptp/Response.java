@@ -9,10 +9,6 @@ public class Response {
         mPayload = new ByteArray();
     }
 
-    public int getInt(int sessionId, int i) {
-        return 0;
-    }
-
     protected void setLength(int length) {
         this.mLength = length;
     }
@@ -39,7 +35,7 @@ public class Response {
         return mPayload;
     }
 
-    public class ResponseFactory {
-
+    public int getCommand() {
+        return mCommand;
     }
 }

@@ -74,4 +74,8 @@ public class ByteArray {
     public String toString() { // TODO: Remove BaseEncoding dependency - it's Android-centric.
         return hexstr(host);
     }
+
+    public int size() {
+        return host.length;
+    }
 }

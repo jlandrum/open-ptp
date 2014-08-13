@@ -1,6 +1,9 @@
 package com.jameslandrum.openptp;
 
 import java.io.IOException;
+import java.util.Arrays;
+
+import static com.jameslandrum.openptp.DataConversion.*;
 
 /**
  * SimpleOpenPTP.java
@@ -9,6 +12,8 @@ import java.io.IOException;
  */
 
 public class SimpleOpenPTP extends OpenPTP {
+    int mTransactionId;
+
     /**
      * Creates an instance of the SimpleOpenPTP
      * @param logger The logger to use.
@@ -17,9 +22,20 @@ public class SimpleOpenPTP extends OpenPTP {
         super(logger);
     }
 
+    @Override
+    public void openConnection(String host, String guid, String name) throws IOException {
+        super.openConnection(host, guid, name);
+        mTransactionId = 0;
+    }
+
     public void openSession() throws IOException {
         sendPTPCommand(mCommandSocket, mTransactionId, null, OutboundCommand.OpenSession, mSessionId);
-        Response response = receiveResponse(mCommandSocket); // TODO: Ensure opening
+        PtpResponse response = receivePtpResponse(mCommandSocket);
+
+        // Ensure we got a proper command
+        if (response.getResult() != ResponseCode.OK) {
+            this.Log(LogStub.ERROR, "Failed to Open Session");
+        }
     }
 
     public void initiateCapture() throws IOException {

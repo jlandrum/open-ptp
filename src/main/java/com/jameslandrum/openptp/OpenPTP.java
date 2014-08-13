@@ -2,6 +2,7 @@ package com.jameslandrum.openptp;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.Arrays;
 
 import static com.jameslandrum.openptp.DataConversion.*;
 
@@ -13,7 +14,6 @@ import static com.jameslandrum.openptp.DataConversion.*;
 public class OpenPTP {
     Socket mCommandSocket;
     Socket mEventSocket;
-    int mTransactionId;
 
     // Remote info
     int mSessionId;
@@ -56,6 +56,11 @@ public class OpenPTP {
         ResponseCode(int command) {
             value = i16l(command);
         }
+
+        static ResponseCode fromInt(int i) {
+            if (Arrays.equals(i16l(i),OK.value)) return OK;
+            return Undefined;
+        }
     }
 
     public OpenPTP(LogStub logger) {
@@ -90,8 +95,6 @@ public class OpenPTP {
 
             sendCommand(mEventSocket, 3, i32l(mSessionId));
             receiveResponse(mEventSocket);
-
-            mTransactionId = 0;
 
             mLogger.log(LogStub.INFO, "Opened connection to: " + mRemoteGuid + " as " + mRemoteName);
         } catch (IOException e) {
@@ -182,7 +185,45 @@ public class OpenPTP {
         return response;
     }
 
-    private void Log(int level, String message) {
+    protected synchronized PtpResponse receivePtpResponse(Socket socket) throws IOException {
+        return receivePtpResponse(socket, receiveResponse(socket));
+    }
+
+    protected synchronized PtpResponse receivePtpResponse(Socket socket, Response in_response) throws IOException {
+        Response response = in_response;
+        ByteArray payload_in = response.getPayload();
+        ByteArray payload_out = new ByteArray();
+
+        if (response.getCommand() == 9) {
+            int transaction_id = i32l(payload_in.getBytes(0,4));
+            int ptp_payload_length = i32l(payload_in.getBytes(0,4));
+
+            while (true) {
+                Response data_response = receiveResponse(socket);
+
+                // A problem occured.
+                if ((data_response.getCommand() != 10 &&
+                      data_response.getCommand() != 12) ||
+                      transaction_id != i32l(data_response.getPayload().getBytes(0,4))) {
+                    throw new IOException("Unexpected Packet");
+                }
+
+                payload_out.add(data_response.getPayload().getBytes());
+
+                if (data_response.getCommand() == 12 ||
+                      ptp_payload_length >= payload_out.size()) { break; }
+            }
+
+            // Receive final packet
+            response = receiveResponse(socket);
+        }
+
+        if (response.getCommand() != 7) return null;
+
+        return new PtpResponse(response.getPayload(), payload_out);
+    }
+
+    protected void Log(int level, String message) {
         if (mLogger != null) {
             mLogger.log(level, message);
         }
