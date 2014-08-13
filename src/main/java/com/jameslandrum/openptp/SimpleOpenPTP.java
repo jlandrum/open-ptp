@@ -26,4 +26,9 @@ public class SimpleOpenPTP extends OpenPTP {
         sendPTPCommand(mCommandSocket, mTransactionId, null, OutboundCommand.InitiateCapture, 0, 0);
         Response response = receiveResponse(mCommandSocket); // TODO: Ensure Capture
     }
+
+    public void ping() throws IOException {
+        sendPTPCommand(mCommandSocket, mTransactionId, null, OutboundCommand.GetDeviceInfo, 0, 0);
+        Response response = receiveResponse(mCommandSocket); // TODO: Absorb the ping.
+    }
 }

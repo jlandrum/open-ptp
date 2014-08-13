@@ -59,10 +59,15 @@ public class OpenPTP {
     }
 
     public OpenPTP(LogStub logger) {
-        mLogger = logger;
+        if (logger == null) {
+            //Shim to allow null messaging
+            mLogger = new LogStub() {@Override public void log(int level, String message) {}};
+        } else {
+            mLogger = logger;
+        }
     }
 
-    public int openConnection(String host, String guid, String name) throws IOException {
+    public void openConnection(String host, String guid, String name) throws IOException {
         try {
             mLogger.log(LogStub.INFO, "Opening connection to: " + host + ":15740");
             mCommandSocket = new Socket(host, 15740);
@@ -92,9 +97,8 @@ public class OpenPTP {
         } catch (IOException e) {
             Log(LogStub.ERROR, "Failed to open connection to " + host + " on port 15740.");
             closeConnection();
-            return 0;
+            throw e;
         }
-        return 1;
     }
 
     public void closeConnection() {
