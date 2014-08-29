@@ -5,8 +5,14 @@ public class Response {
     private int mCommand;
     private ByteArray mPayload;
 
-    public Response() {
-        mPayload = new ByteArray();
+    public Response(ByteArray byteBuffer) {
+        mPayload = byteBuffer;
+    }
+
+    public Response(Response clone) {
+        this.mLength = clone.mLength;
+        this.mCommand = clone.mCommand;
+        this.mPayload = getPayload();
     }
 
     protected void setLength(int length) {

@@ -1,8 +1,11 @@
 package com.jameslandrum.openptp;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 import static com.jameslandrum.openptp.DataConversion.*;
 
@@ -19,8 +22,11 @@ public class OpenPTP {
     int mSessionId;
     String mRemoteGuid;
     String mRemoteName;
-
     LogStub mLogger;
+
+    ByteArray mBuffer;
+
+    HashMap<Integer, OutputStream> mStreamStem;
 
     public enum OutboundCommand {
         GetDeviceInfo(0x1001),
@@ -70,6 +76,16 @@ public class OpenPTP {
         } else {
             mLogger = logger;
         }
+        mStreamStem = new HashMap<>();
+        mBuffer = new ByteArray();
+    }
+
+    public void addStreamShim(int id, OutputStream stream) {
+        mStreamStem.put(id,stream);
+    }
+
+    public void removeStreamShim(int id) {
+        mStreamStem.remove(id);
     }
 
     public void openConnection(String host, String guid, String name) throws IOException {
@@ -124,7 +140,11 @@ public class OpenPTP {
         return (mEventSocket!=null && mCommandSocket!=null) && (!mEventSocket.isClosed() && !mCommandSocket.isClosed());
     }
 
-    public synchronized void sendPTPCommand(Socket socket, int mTransactionId, byte[] payload, OutboundCommand command, int ... arg) throws IOException {
+    public void sendPTPCommand(Socket socket, int transactionid, byte[] payload, OutboundCommand command, int ... arg) throws IOException {
+        sendPTPCommand(socket,transactionid,payload,command.value,arg);
+    }
+
+    public void sendPTPCommand(Socket socket, int transactionid, byte[] payload, byte[] command, int ... arg) throws IOException {
         byte[][] arg32 = new byte[arg.length][4];
         for (int i = 0; i < arg.length; i++) {
             arg32[i] = i32l(arg[i]);
@@ -132,8 +152,8 @@ public class OpenPTP {
 
         byte[] cmd_payload = ByteArray.compound(
                 i32l(1),
-                command.value,
-                i32(mTransactionId),
+                command,
+                i32l(transactionid),
                 ByteArray.compound(arg32)
         );
 
@@ -142,7 +162,7 @@ public class OpenPTP {
         // TODO: Add data pack support
     }
 
-    public synchronized void sendCommand(Socket socket, int commandId, byte[] payload) throws IOException {
+    public void sendCommand(Socket socket, int commandId, byte[] payload) throws IOException {
         ByteArray data = new ByteArray();
         data.add(i32l(payload.length + 8),
                  i32l(commandId),
@@ -152,15 +172,19 @@ public class OpenPTP {
     }
 
     protected synchronized Response receiveResponse(Socket socket) throws IOException {
+        return receiveResponse(socket, new ByteArray());
+    }
+
+    protected synchronized Response receiveResponse(Socket socket, ByteArray dataBuffer) throws IOException {
         byte[] buffer = new byte[4];
 
-        Response response = new Response();
-        ByteArray payload = new ByteArray();
+        Response response = new Response(dataBuffer);
+        mBuffer.clear();
 
         // Read our size
         socket.getInputStream().read(buffer, 0, 4);
         response.setLength(i32l(buffer));
-        payload.add(buffer);
+        mBuffer.add(buffer);
 
         // Response has no command.
         if (response.getLength() < 8) {
@@ -170,7 +194,7 @@ public class OpenPTP {
         // Get the command
         socket.getInputStream().read(buffer, 0, 4);
         response.setCommand(i32l(buffer));
-        payload.add(buffer);
+        mBuffer.add(buffer);
 
         // Get the payload
         int responsePayload = response.getLength() - 8;
@@ -178,40 +202,58 @@ public class OpenPTP {
         socket.getInputStream().read(buffer, 0, responsePayload);
 
         response.setPayload(buffer);
-        payload.add(buffer);
+        mBuffer.add(buffer);
 
         Log(LogStub.INFO, response.toString());
 
         return response;
     }
 
-    protected synchronized PtpResponse receivePtpResponse(Socket socket) throws IOException {
+    protected PtpResponse receivePtpResponse(Socket socket) throws IOException {
         return receivePtpResponse(socket, receiveResponse(socket));
     }
 
-    protected synchronized PtpResponse receivePtpResponse(Socket socket, Response in_response) throws IOException {
+    protected PtpResponse receivePtpResponse(Socket socket, Response in_response) throws IOException {
         Response response = in_response;
         ByteArray payload_in = response.getPayload();
         ByteArray payload_out = new ByteArray();
 
         if (response.getCommand() == 9) {
             int transaction_id = i32l(payload_in.getBytes(0,4));
-            int ptp_payload_length = i32l(payload_in.getBytes(0,4));
+            int ptp_payload_length = i32l(payload_in.getBytes(4,8));
+            int write_count = 0;
+
+            ByteArray responseArray = new ByteArray();
 
             while (true) {
-                Response data_response = receiveResponse(socket);
+                Response data_response = receiveResponse(socket,responseArray);
 
                 // A problem occured.
-                if ((data_response.getCommand() != 10 &&
-                      data_response.getCommand() != 12) ||
-                      transaction_id != i32l(data_response.getPayload().getBytes(0,4))) {
+                if (data_response.getCommand() != 10 &&
+                      data_response.getCommand() != 12) {
                     throw new IOException("Unexpected Packet");
                 }
 
-                payload_out.add(data_response.getPayload().getBytes());
+                int temp_id = i32l(data_response.getPayload().getBytes(0,4));
+                if (temp_id != transaction_id) {
+                    throw new IOException("Unexpected Packet");
+                }
+
+                if (mStreamStem.containsKey(temp_id)) {
+                    mStreamStem.get(temp_id).write(data_response.getPayload().getBytes(4));
+                    //mStreamStem.get(temp_id).flush();
+                    Log(LogStub.INFO, "Pushing to Stream");
+                } else {
+                    payload_out.add(data_response.getPayload().getBytes(4));
+                    Log(LogStub.INFO, "Pushing to Byte Array");
+                }
+
+                write_count += data_response.getPayload().size() - 4;
 
                 if (data_response.getCommand() == 12 ||
-                      ptp_payload_length >= payload_out.size()) { break; }
+                        write_count >= ptp_payload_length) {
+                    break;
+                }
             }
 
             // Receive final packet
@@ -220,7 +262,7 @@ public class OpenPTP {
 
         if (response.getCommand() != 7) return null;
 
-        return new PtpResponse(response.getPayload(), payload_out);
+        return new PtpResponse(response, payload_out);
     }
 
     protected void Log(int level, String message) {

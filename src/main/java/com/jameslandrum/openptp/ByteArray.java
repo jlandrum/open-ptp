@@ -1,6 +1,9 @@
 package com.jameslandrum.openptp;
 
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.jameslandrum.openptp.DataConversion.hexstr;
 
@@ -12,6 +15,7 @@ import static com.jameslandrum.openptp.DataConversion.hexstr;
 
 public class ByteArray {
     private byte[] host;
+    private int length;
 
     public ByteArray(byte[] ... data) {
         this();
@@ -19,7 +23,7 @@ public class ByteArray {
     }
 
     public ByteArray(byte[] data) {
-        host = Arrays.copyOf(data,data.length);
+        host = Arrays.copyOf(data,length);
     }
 
     public ByteArray() {
@@ -31,13 +35,24 @@ public class ByteArray {
     }
 
     private void resize(int newSize) {
-        host = Arrays.copyOf(host, newSize);
+        if (newSize > host.length) {
+            host = Arrays.copyOf(host, newSize);
+        }
+        length = newSize;
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
     }
 
     private void append(byte[] data) {
-        int offset = host.length;
-        resize(host.length + data.length);
-        System.arraycopy(data, 0, host, offset, data.length);
+        int offset = length;
+        resize(length + data.length);
+        for (int i = 0; i < data.length; i++) {
+            host[i + offset] = data[i];
+        }
+        //System.arraycopy(data, 0, host, offset, data.length);
     }
 
     public void add(byte[] data) {
@@ -63,11 +78,15 @@ public class ByteArray {
     }
 
     public byte[] getBytes() {
-        return Arrays.copyOf(host,host.length);
+        return Arrays.copyOf(host,length);
+    }
+
+    public byte[] getBytes(int start) {
+        return getBytes(start,0);
     }
 
     public void clear() {
-        host = new byte[0];
+        length = 0;
     }
 
     @Override
@@ -76,6 +95,10 @@ public class ByteArray {
     }
 
     public int size() {
-        return host.length;
+        return length;
+    }
+
+    public static String toString(byte[] payload) {
+        return hexstr(payload);
     }
 }

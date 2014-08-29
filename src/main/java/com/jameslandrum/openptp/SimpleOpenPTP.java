@@ -1,7 +1,12 @@
 package com.jameslandrum.openptp;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 import static com.jameslandrum.openptp.DataConversion.*;
 
@@ -16,6 +21,7 @@ public class SimpleOpenPTP extends OpenPTP {
 
     /**
      * Creates an instance of the SimpleOpenPTP
+     *
      * @param logger The logger to use.
      */
     public SimpleOpenPTP(LogStub logger) {
@@ -38,13 +44,20 @@ public class SimpleOpenPTP extends OpenPTP {
         }
     }
 
-    public void initiateCapture() throws IOException {
-        sendPTPCommand(mCommandSocket, mTransactionId, null, OutboundCommand.InitiateCapture, 0, 0);
-        Response response = receiveResponse(mCommandSocket); // TODO: Ensure Capture
+    public int doCommand(OutboundCommand action, OutputStream capture, int[] params) throws IOException {
+        int tid = ++mTransactionId;
+        if (capture != null) {
+            addStreamShim(tid, capture);
+        }
+        sendPTPCommand(mCommandSocket, mTransactionId, null, action, params);
+        return tid;
     }
 
-    public void ping() throws IOException {
-        sendPTPCommand(mCommandSocket, mTransactionId, null, OutboundCommand.GetDeviceInfo, 0, 0);
-        Response response = receiveResponse(mCommandSocket); // TODO: Absorb the ping.
+    public Response getResponse() throws IOException {
+        return receiveResponse(mCommandSocket);
+    }
+
+    public PtpResponse getPtpResponse(Response response) throws IOException {
+        return receivePtpResponse(mCommandSocket, response);
     }
 }

@@ -121,6 +121,50 @@ public class DataConversion {
     }
 
     /**
+     *  Provides int32 byte array conversion
+     *  @param b    Bytes to convert to integer array.
+     *  @param le   Should convert to Little-Endian.
+     */
+    public static int[] i32a(byte[] b,boolean le) {
+        if (b.length % 4 != 0) return new int[0];                                                   // TODO: This may need to throw an exception instead.
+        int[] ints = new int[b.length / 4];
+        for (int i = 0; i < ints.length; i++) {
+            byte[] i32 = Arrays.copyOfRange(b,i*4,(i+1)*4);
+            ints[i] = (le?i32l(i32):i32(i32));
+        }
+        return ints;
+    }
+
+    /**
+     *  Shorthand for a little-endian i32 array
+     *  @param b Bytes to convert to integer array.
+     */
+    public static int[] i32al(byte[] b) {
+        return i32a(b, true);
+    }
+
+    /**
+     *  Provides int32 byte array conversion
+     *  @param ia    Integer array to convert to byte array.
+     *  @param le   Should convert to Little-Endian.
+     */
+    public static byte[] i32a(int[] ia,boolean le) {
+        ByteArray array = new ByteArray();
+        for (int i = 0; i < ia.length; i++) {
+            array.add(le?i32l(ia[i]):i32(ia[i]));
+        }
+        return array.getBytes();
+    }
+
+    /**
+     *  Shorthand for a little-endian i32 array to bytes
+     *  @param ia Bytes to convert to integer array.
+     */
+    public static byte[] i32al(int[] ia) {
+        return i32a(ia,true);
+    }
+
+    /**
      *  Provides 16-bit string byte conversion
      *  @param in   Input string to convert to bytes.
      *  @param zt   Should add zero-termination.
@@ -132,7 +176,8 @@ public class DataConversion {
             if (zt) value = Arrays.copyOf(value, value.length + 2);
             return value;
         } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("Failed to convert string due to a permanent conversion error.");
+            throw new
+                  RuntimeException("Failed to convert string due to a permanent conversion error.");
         }
     }
 
@@ -162,7 +207,8 @@ public class DataConversion {
         try {
             return new String(Arrays.copyOfRange(in,0,in.length-(zt?2:0)),le?"UTF-16LE":"UTF-16BE");
         } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("Failed to convert string due to a permanent conversion error.");
+            throw new
+                  RuntimeException("Failed to convert string due to a permanent conversion error.");
         }
     }
 
