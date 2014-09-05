@@ -3,16 +3,13 @@ package com.jameslandrum.openptp;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
-import static com.jameslandrum.openptp.DataConversion.*;
-
-/**
- * OpenPTP - Open PTP Communications Library
- * (C) 2014 James Landrum
- */
+import static com.jameslandrum.openptp.DataConversion.hexstr;
+import static com.jameslandrum.openptp.DataConversion.i16l;
+import static com.jameslandrum.openptp.DataConversion.i32l;
+import static com.jameslandrum.openptp.DataConversion.str16lz;
 
 public class OpenPTP {
     Socket mCommandSocket;
