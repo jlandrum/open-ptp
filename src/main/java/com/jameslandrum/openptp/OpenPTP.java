@@ -160,6 +160,7 @@ public class OpenPTP {
     }
 
     public void sendCommand(Socket socket, int commandId, byte[] payload) throws IOException {
+        if (socket == null) return;
         ByteArray data = new ByteArray();
         data.add(i32l(payload.length + 8),
                  i32l(commandId),
@@ -168,11 +169,11 @@ public class OpenPTP {
         socket.getOutputStream().write(data.getBytes());
     }
 
-    protected synchronized Response receiveResponse(Socket socket) throws IOException {
+    protected Response receiveResponse(Socket socket) throws IOException {
         return receiveResponse(socket, new ByteArray());
     }
 
-    protected synchronized Response receiveResponse(Socket socket, ByteArray dataBuffer) throws IOException {
+    protected Response receiveResponse(Socket socket, ByteArray dataBuffer) throws IOException {
         byte[] buffer = new byte[4];
 
         Response response = new Response(dataBuffer);
@@ -260,6 +261,10 @@ public class OpenPTP {
         if (response.getCommand() != 7) return null;
 
         return new PtpResponse(response, payload_out);
+    }
+
+    protected void receivePtpEvent(Socket socket) {
+
     }
 
     protected void Log(int level, String message) {

@@ -1,14 +1,14 @@
 package com.jameslandrum.openptp;
 
-import java.io.File;
+import com.jameslandrum.openptp.responders.DeviceInfoResponseParser;
+import com.jameslandrum.openptp.responders.GenericResponseParser;
+import com.jameslandrum.openptp.responders.ObjectInfoResponseParser;
+import com.jameslandrum.openptp.responders.RawDataResponseParser;
+import com.jameslandrum.openptp.responders.ResponseParser;
+import com.jameslandrum.openptp.responders.i32ArrayResponseParser;
+
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-
-import static com.jameslandrum.openptp.DataConversion.*;
 
 /**
  * SimpleOpenPTP.java
@@ -17,7 +17,7 @@ import static com.jameslandrum.openptp.DataConversion.*;
  */
 
 public class SimpleOpenPTP extends OpenPTP {
-    int mTransactionId;
+    private int mTransactionId;
 
     /**
      * Creates an instance of the SimpleOpenPTP
@@ -57,7 +57,30 @@ public class SimpleOpenPTP extends OpenPTP {
         return receiveResponse(mCommandSocket);
     }
 
+    public Response getEvent() throws IOException {
+        return receiveResponse(mEventSocket);
+    }
+
     public PtpResponse getPtpResponse(Response response) throws IOException {
         return receivePtpResponse(mCommandSocket, response);
     }
+
+    public static ResponseParser getDefaultResponder(OutboundCommand action) {
+        switch (action) {
+            case GetStorageIDs:
+            case GetObjectHandles:
+                return new i32ArrayResponseParser();
+            case GetObject:
+            case GetThumb:
+                return new RawDataResponseParser();
+            case GetDeviceInfo:
+                return new DeviceInfoResponseParser();
+            case GetObjectInfo:
+                return new ObjectInfoResponseParser();
+            default:
+                return new GenericResponseParser();
+        }
+    }
+
+
 }

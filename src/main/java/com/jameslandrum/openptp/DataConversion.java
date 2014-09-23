@@ -41,7 +41,15 @@ public class DataConversion {
     }
 
     /**
-     *  Provides int8 byte conversion
+     *  Provides i8 byte conversion
+     *  @param b    Bytes to convert to integer.
+     */
+    public static int i8(byte[] b) {
+        return ByteBuffer.wrap(b).getChar();
+    }
+
+    /**
+     *  Provides i16 byte conversion
      *  @param b    Bytes to convert to integer.
      *  @param le   Should convert to Little-Endian.
      */
@@ -205,7 +213,7 @@ public class DataConversion {
      */
     public static String str16(byte[] in, boolean zt, boolean le) {
         try {
-            return new String(Arrays.copyOfRange(in,0,in.length-(zt?2:0)),le?"UTF-16LE":"UTF-16BE");
+            return new String(Arrays.copyOfRange(in,0,Math.max(0,in.length-(zt?2:0))),le?"UTF-16LE":"UTF-16BE");
         } catch (UnsupportedEncodingException e) {
             throw new
                   RuntimeException("Failed to convert string due to a permanent conversion error.");
@@ -227,6 +235,15 @@ public class DataConversion {
     public static String str16(byte[] in) {
         return str16(in,false,false);
     }
+
+    /**
+     *  Shorthand for a non-terminated big-endian string.
+     *  @param in Input string to convert to bytes.
+     */
+    public static String ptp_str16(byte[] in) {
+        return str16(in,false,false);
+    }
+
 
     /**
      * Converts a HEX String to a byte array.
