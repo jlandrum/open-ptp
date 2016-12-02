@@ -244,7 +244,10 @@ public class DataConversion {
         return str16(in,false,false);
     }
 
-
+    // *********************************************
+    // * Snippet on Stack Overflow
+    // * Link: https://stackoverflow.com/a/140861
+    // *********************************************
     /**
      * Converts a HEX String to a byte array.
      * @param in String to convert.
