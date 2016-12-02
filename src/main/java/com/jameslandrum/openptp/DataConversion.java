@@ -245,8 +245,9 @@ public class DataConversion {
     }
 
     // *********************************************
-    // * Snippet on Stack Overflow
+    // * Snippet from Stack Overflow by Dave L.
     // * Link: https://stackoverflow.com/a/140861
+    // * Author: http://stackoverflow.com/users/3093/dave-l
     // *********************************************
     /**
      * Converts a HEX String to a byte array.
